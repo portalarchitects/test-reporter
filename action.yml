@@ -89,6 +89,9 @@ inputs:
     description: Customize badge title
     required: false
     default: 'tests'
+  commentIssueNumber:
+    description: "pull request number for test summary comment"
+    required: false
   token:
     description: GitHub Access Token
     required: false

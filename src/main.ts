@@ -236,8 +236,10 @@ class TestReporter {
         ...github.context.repo
       })
 
-      const {pull_request} = github.context.payload
-      if (pull_request !== undefined && pull_request !== null) {
+      const pullRequestNumber = github?.context?.payload?.pull_request?.number || +core.getInput("commentIssueNumber", {required: false})
+      if (Number.isNaN(pullRequestNumber) || pullRequestNumber < 1) {
+        core.info('Not in the context of a pull request. Skipping comment creation.')
+      } else {
         let commentBody = summary;
         // if the summary is oversized, replace with minimal version
         if (commentBody.length >= MAX_COMMENT_LENGTH) {
@@ -251,14 +253,14 @@ class TestReporter {
         core.info(`Looking for pre-existing test summary`)
         const commentList = await this.octokit.rest.issues.listComments({
           ...github.context.repo,
-          issue_number: pull_request.number
+          issue_number: pullRequestNumber
         })
         const targetId = commentList.data.find((el: any) => el.body?.includes(COMMENT_MARKER))?.id
         if (targetId !== undefined) {
           core.info(`Updating test summary as comment on pull-request`)
           await this.octokit.rest.issues.updateComment({
             ...github.context.repo,
-            issue_number: pull_request.number,
+            issue_number: pullRequestNumber,
             comment_id: targetId,
             body: commentContent
           })
@@ -266,12 +268,10 @@ class TestReporter {
           core.info(`Attaching test summary as comment on pull-request`)
           await this.octokit.rest.issues.createComment({
             ...github.context.repo,
-            issue_number: pull_request.number,
+            issue_number: pullRequestNumber,
             body: commentContent
           })
         }
-      } else {
-        core.info('Not in the context of a pull request. Skipping comment creation.')
       }
 
       core.info(`Check run create response: ${resp.status}`)
