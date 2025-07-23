@@ -49210,11 +49210,6 @@ module.exports.promise = queueAsPromised
 /************************************************************************/
 var __webpack_exports__ = {};
 
-// EXPORTS
-__nccwpck_require__.d(__webpack_exports__, {
-  w: () => (/* binding */ MAX_COMMENT_LENGTH)
-});
-
 // NAMESPACE OBJECT: ./node_modules/@actions/github/lib/github.js
 var github_namespaceObject = {};
 __nccwpck_require__.r(github_namespaceObject);
@@ -52050,7 +52045,7 @@ function isDebug() {
  * @param message debug message
  */
 function core_debug(message) {
-    command_issueCommand('debug', {}, message);
+    issueCommand('debug', {}, message);
 }
 /**
  * Adds an error issue
@@ -57007,7 +57002,8 @@ const DEFAULT_OPTIONS = {
     useActionsSummary: true,
     badgeTitle: 'tests',
     reportTitle: '',
-    collapsed: 'auto'
+    collapsed: 'auto',
+    useCommentPr: false
 };
 function getReport(results, options = DEFAULT_OPTIONS, shortSummary = '') {
     applySort(results);
@@ -57030,7 +57026,7 @@ function getReport(results, options = DEFAULT_OPTIONS, shortSummary = '') {
     return trimReport(lines, options);
 }
 function getMaxReportLength(options = DEFAULT_OPTIONS) {
-    return options.useActionsSummary ? MAX_ACTIONS_SUMMARY_LENGTH : MAX_REPORT_LENGTH;
+    return options.useActionsSummary && !options.useCommentPr ? MAX_ACTIONS_SUMMARY_LENGTH : MAX_REPORT_LENGTH;
 }
 function trimReport(lines, options) {
     const closingBlock = '```';
@@ -58986,7 +58982,6 @@ class NetteTesterJunitParser {
 
 
 
-const MAX_COMMENT_LENGTH = 65536;
 const COMMENT_MARKER = '<!-- test-summary-pr-comment-marker -->';
 async function main() {
     try {
@@ -59104,23 +59099,18 @@ class TestReporter {
             return;
         }
     }
-    async commentPr(summary, shortSummary) {
+    async commentPr(summary) {
         if (Number.isNaN(this.pullRequestNumber) || this.pullRequestNumber < 1) {
             info('Not in the context of a pull request. Skipping comment creation.');
         }
         else {
-            let commentBody = summary;
-            // if the summary is oversized, replace with minimal version
-            if (commentBody.length >= MAX_COMMENT_LENGTH) {
-                core_debug('The comment was too big for the GitHub API. Falling back to short summary');
-                commentBody = shortSummary;
-            }
-            const commentContent = `${commentBody}\n\n${COMMENT_MARKER}`;
+            const commentContent = `${summary}\n\n${COMMENT_MARKER}`;
             info(`Looking for pre-existing test summary`);
             const commentList = await this.octokit.rest.issues.listComments({
                 ...github_context.repo,
                 issue_number: this.pullRequestNumber
             });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const targetId = commentList.data.find((el) => el.body?.includes(COMMENT_MARKER))?.id;
             if (targetId !== undefined) {
                 info(`Updating test summary as comment on pull-request`);
@@ -59175,9 +59165,10 @@ class TestReporter {
                 useActionsSummary,
                 badgeTitle,
                 reportTitle,
-                collapsed
+                collapsed,
+                useCommentPr: !Number.isNaN(this.pullRequestNumber) && this.pullRequestNumber > 1
             }, shortSummary);
-            await this.commentPr(shortSummary, summary);
+            await this.commentPr(summary);
             info('Summary content:');
             info(summary);
             this.writeSummaryFile(summary);
@@ -59207,7 +59198,8 @@ class TestReporter {
                 useActionsSummary,
                 badgeTitle,
                 reportTitle,
-                collapsed
+                collapsed,
+                useCommentPr: !Number.isNaN(this.pullRequestNumber) && this.pullRequestNumber > 1
             });
             info('Creating annotations');
             const annotations = getAnnotations(results, this.maxAnnotations);
@@ -59226,7 +59218,7 @@ class TestReporter {
                 },
                 ...github_context.repo
             });
-            await this.commentPr(shortSummary, summary);
+            await this.commentPr(summary);
             info(`Check run create response: ${resp.status}`);
             info(`Check run URL: ${resp.data.url}`);
             info(`Check run HTML: ${resp.data.html_url}`);
@@ -59277,5 +59269,3 @@ class TestReporter {
 }
 main();
 
-var __webpack_exports__MAX_COMMENT_LENGTH = __webpack_exports__.w;
-export { __webpack_exports__MAX_COMMENT_LENGTH as MAX_COMMENT_LENGTH };

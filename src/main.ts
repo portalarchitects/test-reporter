@@ -29,7 +29,6 @@ import {NetteTesterJunitParser} from './parsers/tester-junit/tester-junit-parser
 import {normalizeDirPath, normalizeFilePath} from './utils/path-utils.js'
 import {getCheckRunContext} from './utils/github-utils.js'
 
-export const MAX_COMMENT_LENGTH = 65536
 const COMMENT_MARKER = '<!-- test-summary-pr-comment-marker -->'
 
 async function main(): Promise<void> {
@@ -173,23 +172,17 @@ class TestReporter {
     }
   }
 
-  async commentPr(summary: string, shortSummary: string): Promise<void> {
+  async commentPr(summary: string): Promise<void> {
     if (Number.isNaN(this.pullRequestNumber) || this.pullRequestNumber < 1) {
       core.info('Not in the context of a pull request. Skipping comment creation.')
     } else {
-      let commentBody = summary
-      // if the summary is oversized, replace with minimal version
-      if (commentBody.length >= MAX_COMMENT_LENGTH) {
-        core.debug('The comment was too big for the GitHub API. Falling back to short summary')
-        commentBody = shortSummary
-      }
-
-      const commentContent = `${commentBody}\n\n${COMMENT_MARKER}`
+      const commentContent = `${summary}\n\n${COMMENT_MARKER}`
       core.info(`Looking for pre-existing test summary`)
       const commentList = await this.octokit.rest.issues.listComments({
         ...github.context.repo,
         issue_number: this.pullRequestNumber
       })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const targetId = commentList.data.find((el: any) => el.body?.includes(COMMENT_MARKER))?.id
       if (targetId !== undefined) {
         core.info(`Updating test summary as comment on pull-request`)
@@ -259,12 +252,13 @@ class TestReporter {
           useActionsSummary,
           badgeTitle,
           reportTitle,
-          collapsed
+          collapsed,
+          useCommentPr: !Number.isNaN(this.pullRequestNumber) && this.pullRequestNumber > 1
         },
         shortSummary
       )
 
-      await this.commentPr(shortSummary, summary)
+      await this.commentPr(summary)
       core.info('Summary content:')
       core.info(summary)
       this.writeSummaryFile(summary)
@@ -294,7 +288,8 @@ class TestReporter {
         useActionsSummary,
         badgeTitle,
         reportTitle,
-        collapsed
+        collapsed,
+        useCommentPr: !Number.isNaN(this.pullRequestNumber) && this.pullRequestNumber > 1
       })
 
       core.info('Creating annotations')
@@ -317,7 +312,7 @@ class TestReporter {
         ...github.context.repo
       })
 
-      await this.commentPr(shortSummary, summary)
+      await this.commentPr(summary)
 
       core.info(`Check run create response: ${resp.status}`)
       core.info(`Check run URL: ${resp.data.url}`)

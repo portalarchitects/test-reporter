@@ -19,6 +19,7 @@ export interface ReportOptions {
   badgeTitle: string
   reportTitle: string
   collapsed: 'auto' | 'always' | 'never'
+  useCommentPr: boolean
 }
 
 export const DEFAULT_OPTIONS: ReportOptions = {
@@ -31,7 +32,8 @@ export const DEFAULT_OPTIONS: ReportOptions = {
   useActionsSummary: true,
   badgeTitle: 'tests',
   reportTitle: '',
-  collapsed: 'auto'
+  collapsed: 'auto',
+  useCommentPr: false
 }
 
 export function getReport(
@@ -64,7 +66,7 @@ export function getReport(
 }
 
 function getMaxReportLength(options: ReportOptions = DEFAULT_OPTIONS): number {
-  return options.useActionsSummary ? MAX_ACTIONS_SUMMARY_LENGTH : MAX_REPORT_LENGTH
+  return options.useActionsSummary && !options.useCommentPr ? MAX_ACTIONS_SUMMARY_LENGTH : MAX_REPORT_LENGTH
 }
 
 function trimReport(lines: string[], options: ReportOptions): string {
