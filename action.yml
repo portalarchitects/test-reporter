@@ -108,7 +108,7 @@ inputs:
         - never: Always expand the report details
     required: false
     default: 'auto'
-  commentIssueNumber:
+  comment-issue-number:
     description: "pull request number for test summary comment"
     required: false
   token:
