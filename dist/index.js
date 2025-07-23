@@ -264,6 +264,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MAX_COMMENT_LENGTH = void 0;
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
 const artifact_provider_1 = __nccwpck_require__(4548);
@@ -281,6 +282,8 @@ const rspec_json_parser_1 = __nccwpck_require__(9768);
 const swift_xunit_parser_1 = __nccwpck_require__(7330);
 const path_utils_1 = __nccwpck_require__(9132);
 const github_utils_1 = __nccwpck_require__(6667);
+exports.MAX_COMMENT_LENGTH = 65536;
+const COMMENT_MARKER = '<!-- test-summary-pr-comment-marker -->';
 async function main() {
     try {
         const testReporter = new TestReporter();
@@ -310,6 +313,7 @@ class TestReporter {
     badgeTitle = core.getInput('badge-title', { required: false });
     reportTitle = core.getInput('report-title', { required: false });
     token = core.getInput('token', { required: true });
+    pullRequestNumber = github?.context?.payload?.pull_request?.number || +core.getInput("comment-issue-number", { required: false });
     octokit;
     context = (0, github_utils_1.getCheckRunContext)();
     constructor() {
@@ -384,6 +388,43 @@ class TestReporter {
             return;
         }
     }
+    async commentPr(summary, shortSummary) {
+        if (Number.isNaN(this.pullRequestNumber) || this.pullRequestNumber < 1) {
+            core.info('Not in the context of a pull request. Skipping comment creation.');
+        }
+        else {
+            let commentBody = summary;
+            // if the summary is oversized, replace with minimal version
+            if (commentBody.length >= exports.MAX_COMMENT_LENGTH) {
+                core.debug('The comment was too big for the GitHub API. Falling back to short summary');
+                commentBody = shortSummary;
+            }
+            const commentContent = `${commentBody}\n\n${COMMENT_MARKER}`;
+            core.info(`Looking for pre-existing test summary`);
+            const commentList = await this.octokit.rest.issues.listComments({
+                ...github.context.repo,
+                issue_number: this.pullRequestNumber
+            });
+            const targetId = commentList.data.find((el) => el.body?.includes(COMMENT_MARKER))?.id;
+            if (targetId !== undefined) {
+                core.info(`Updating test summary as comment on pull-request`);
+                await this.octokit.rest.issues.updateComment({
+                    ...github.context.repo,
+                    issue_number: this.pullRequestNumber,
+                    comment_id: targetId,
+                    body: commentContent
+                });
+            }
+            else {
+                core.info(`Attaching test summary as comment on pull-request`);
+                await this.octokit.rest.issues.createComment({
+                    ...github.context.repo,
+                    issue_number: this.pullRequestNumber,
+                    body: commentContent
+                });
+            }
+        }
+    }
     async createReport(parser, name, files) {
         if (files.length === 0) {
             core.warning(`No file matches path ${this.path}`);
@@ -417,6 +458,7 @@ class TestReporter {
                 badgeTitle,
                 reportTitle
             });
+            await this.commentPr(shortSummary, summary);
             core.info('Summary content:');
             core.info(summary);
             core.summary.addRaw(`# ${shortSummary}`);
@@ -461,6 +503,7 @@ class TestReporter {
                 },
                 ...github.context.repo
             });
+            await this.commentPr(shortSummary, summary);
             core.info(`Check run create response: ${resp.status}`);
             core.info(`Check run URL: ${resp.data.url}`);
             core.info(`Check run HTML: ${resp.data.html_url}`);
