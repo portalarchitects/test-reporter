@@ -16,6 +16,7 @@ export interface ReportOptions {
   useActionsSummary: boolean
   badgeTitle: string
   reportTitle: string
+  useCommentPr: boolean
 }
 
 export const DEFAULT_OPTIONS: ReportOptions = {
@@ -25,7 +26,8 @@ export const DEFAULT_OPTIONS: ReportOptions = {
   onlySummary: false,
   useActionsSummary: true,
   badgeTitle: 'tests',
-  reportTitle: ''
+  reportTitle: '',
+  useCommentPr: false
 }
 
 export function getReport(results: TestRunResult[], options: ReportOptions = DEFAULT_OPTIONS): string {
@@ -56,7 +58,7 @@ export function getReport(results: TestRunResult[], options: ReportOptions = DEF
 }
 
 function getMaxReportLength(options: ReportOptions = DEFAULT_OPTIONS): number {
-  return options.useActionsSummary ? MAX_ACTIONS_SUMMARY_LENGTH : MAX_REPORT_LENGTH
+  return options.useActionsSummary && !options.useCommentPr ? MAX_ACTIONS_SUMMARY_LENGTH : MAX_REPORT_LENGTH
 }
 
 function trimReport(lines: string[], options: ReportOptions): string {
