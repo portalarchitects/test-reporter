@@ -62,7 +62,8 @@ class TestReporter {
   readonly reportTitle = core.getInput('report-title', {required: false})
   readonly collapsed = core.getInput('collapsed', {required: false}) as 'auto' | 'always' | 'never'
   readonly token = core.getInput('token', {required: true})
-  readonly pullRequestNumber = github?.context?.payload?.pull_request?.number || +core.getInput("comment-issue-number", {required: false})
+  readonly pullRequestNumber =
+    github?.context?.payload?.pull_request?.number || +core.getInput('comment-issue-number', {required: false})
   readonly octokit: InstanceType<typeof GitHub>
   readonly context = getCheckRunContext()
 
@@ -176,12 +177,10 @@ class TestReporter {
     if (Number.isNaN(this.pullRequestNumber) || this.pullRequestNumber < 1) {
       core.info('Not in the context of a pull request. Skipping comment creation.')
     } else {
-      let commentBody = summary;
+      let commentBody = summary
       // if the summary is oversized, replace with minimal version
       if (commentBody.length >= MAX_COMMENT_LENGTH) {
-        core.debug(
-          'The comment was too big for the GitHub API. Falling back to short summary'
-        )
+        core.debug('The comment was too big for the GitHub API. Falling back to short summary')
         commentBody = shortSummary
       }
 

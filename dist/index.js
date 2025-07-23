@@ -49175,12 +49175,53 @@ module.exports.promise = queueAsPromised
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/make namespace object */
+/******/ (() => {
+/******/ 	// define __esModule on exports
+/******/ 	__nccwpck_require__.r = (exports) => {
+/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		}
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
 /******/ 
 /************************************************************************/
 var __webpack_exports__ = {};
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  w: () => (/* binding */ MAX_COMMENT_LENGTH)
+});
+
+// NAMESPACE OBJECT: ./node_modules/@actions/github/lib/github.js
+var github_namespaceObject = {};
+__nccwpck_require__.r(github_namespaceObject);
+__nccwpck_require__.d(github_namespaceObject, {
+  context: () => (github_context),
+  getOctokit: () => (getOctokit)
+});
 
 // EXTERNAL MODULE: external "os"
 var external_os_ = __nccwpck_require__(857);
@@ -52009,7 +52050,7 @@ function isDebug() {
  * @param message debug message
  */
 function core_debug(message) {
-    issueCommand('debug', {}, message);
+    command_issueCommand('debug', {}, message);
 }
 /**
  * Adds an error issue
@@ -58945,6 +58986,8 @@ class NetteTesterJunitParser {
 
 
 
+const MAX_COMMENT_LENGTH = 65536;
+const COMMENT_MARKER = '<!-- test-summary-pr-comment-marker -->';
 async function main() {
     try {
         const testReporter = new TestReporter();
@@ -58977,6 +59020,7 @@ class TestReporter {
     reportTitle = getInput('report-title', { required: false });
     collapsed = getInput('collapsed', { required: false });
     token = getInput('token', { required: true });
+    pullRequestNumber = github_namespaceObject?.context?.payload?.pull_request?.number || +getInput('comment-issue-number', { required: false });
     octokit;
     context = getCheckRunContext();
     constructor() {
@@ -59060,6 +59104,43 @@ class TestReporter {
             return;
         }
     }
+    async commentPr(summary, shortSummary) {
+        if (Number.isNaN(this.pullRequestNumber) || this.pullRequestNumber < 1) {
+            info('Not in the context of a pull request. Skipping comment creation.');
+        }
+        else {
+            let commentBody = summary;
+            // if the summary is oversized, replace with minimal version
+            if (commentBody.length >= MAX_COMMENT_LENGTH) {
+                core_debug('The comment was too big for the GitHub API. Falling back to short summary');
+                commentBody = shortSummary;
+            }
+            const commentContent = `${commentBody}\n\n${COMMENT_MARKER}`;
+            info(`Looking for pre-existing test summary`);
+            const commentList = await this.octokit.rest.issues.listComments({
+                ...github_context.repo,
+                issue_number: this.pullRequestNumber
+            });
+            const targetId = commentList.data.find((el) => el.body?.includes(COMMENT_MARKER))?.id;
+            if (targetId !== undefined) {
+                info(`Updating test summary as comment on pull-request`);
+                await this.octokit.rest.issues.updateComment({
+                    ...github_context.repo,
+                    issue_number: this.pullRequestNumber,
+                    comment_id: targetId,
+                    body: commentContent
+                });
+            }
+            else {
+                info(`Attaching test summary as comment on pull-request`);
+                await this.octokit.rest.issues.createComment({
+                    ...github_context.repo,
+                    issue_number: this.pullRequestNumber,
+                    body: commentContent
+                });
+            }
+        }
+    }
     async createReport(parser, name, files) {
         if (files.length === 0) {
             warning(`No file matches path ${this.path}`);
@@ -59096,6 +59177,7 @@ class TestReporter {
                 reportTitle,
                 collapsed
             }, shortSummary);
+            await this.commentPr(shortSummary, summary);
             info('Summary content:');
             info(summary);
             this.writeSummaryFile(summary);
@@ -59144,6 +59226,7 @@ class TestReporter {
                 },
                 ...github_context.repo
             });
+            await this.commentPr(shortSummary, summary);
             info(`Check run create response: ${resp.status}`);
             info(`Check run URL: ${resp.data.url}`);
             info(`Check run HTML: ${resp.data.html_url}`);
@@ -59194,3 +59277,5 @@ class TestReporter {
 }
 main();
 
+var __webpack_exports__MAX_COMMENT_LENGTH = __webpack_exports__.w;
+export { __webpack_exports__MAX_COMMENT_LENGTH as MAX_COMMENT_LENGTH };
