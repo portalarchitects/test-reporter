@@ -236,7 +236,7 @@ class TestReporter {
         ...github.context.repo
       })
 
-      const pullRequestNumber = github?.context?.payload?.pull_request?.number || +core.getInput("commentIssueNumber", {required: false})
+      const pullRequestNumber = github?.context?.payload?.pull_request?.number || +core.getInput("comment-issue-number", {required: false})
       if (Number.isNaN(pullRequestNumber) || pullRequestNumber < 1) {
         core.info('Not in the context of a pull request. Skipping comment creation.')
       } else {
