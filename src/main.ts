@@ -53,6 +53,7 @@ class TestReporter {
   readonly badgeTitle = core.getInput('badge-title', {required: false})
   readonly reportTitle = core.getInput('report-title', {required: false})
   readonly token = core.getInput('token', {required: true})
+  readonly pullRequestNumber = github?.context?.payload?.pull_request?.number || +core.getInput("comment-issue-number", {required: false})
   readonly octokit: InstanceType<typeof GitHub>
   readonly context = getCheckRunContext()
 
@@ -151,6 +152,45 @@ class TestReporter {
     }
   }
 
+  async commentPr(summary: string, shortSummary: string): Promise<void> {
+    if (Number.isNaN(this.pullRequestNumber) || this.pullRequestNumber < 1) {
+      core.info('Not in the context of a pull request. Skipping comment creation.')
+    } else {
+      let commentBody = summary;
+      // if the summary is oversized, replace with minimal version
+      if (commentBody.length >= MAX_COMMENT_LENGTH) {
+        core.debug(
+          'The comment was too big for the GitHub API. Falling back to short summary'
+        )
+        commentBody = shortSummary
+      }
+
+      const commentContent = `${commentBody}\n\n${COMMENT_MARKER}`
+      core.info(`Looking for pre-existing test summary`)
+      const commentList = await this.octokit.rest.issues.listComments({
+        ...github.context.repo,
+        issue_number: this.pullRequestNumber
+      })
+      const targetId = commentList.data.find((el: any) => el.body?.includes(COMMENT_MARKER))?.id
+      if (targetId !== undefined) {
+        core.info(`Updating test summary as comment on pull-request`)
+        await this.octokit.rest.issues.updateComment({
+          ...github.context.repo,
+          issue_number: this.pullRequestNumber,
+          comment_id: targetId,
+          body: commentContent
+        })
+      } else {
+        core.info(`Attaching test summary as comment on pull-request`)
+        await this.octokit.rest.issues.createComment({
+          ...github.context.repo,
+          issue_number: this.pullRequestNumber,
+          body: commentContent
+        })
+      }
+    }
+  }
+
   async createReport(parser: TestParser, name: string, files: FileContent[]): Promise<TestRunResult[]> {
     if (files.length === 0) {
       core.warning(`No file matches path ${this.path}`)
@@ -188,6 +228,7 @@ class TestReporter {
         reportTitle
       })
 
+      await this.commentPr(shortSummary, summary)
       core.info('Summary content:')
       core.info(summary)
       core.summary.addRaw(`# ${shortSummary}`)
@@ -236,43 +277,7 @@ class TestReporter {
         ...github.context.repo
       })
 
-      const pullRequestNumber = github?.context?.payload?.pull_request?.number || +core.getInput("comment-issue-number", {required: false})
-      if (Number.isNaN(pullRequestNumber) || pullRequestNumber < 1) {
-        core.info('Not in the context of a pull request. Skipping comment creation.')
-      } else {
-        let commentBody = summary;
-        // if the summary is oversized, replace with minimal version
-        if (commentBody.length >= MAX_COMMENT_LENGTH) {
-          core.debug(
-            'The comment was too big for the GitHub API. Falling back to short summary'
-          )
-          commentBody = shortSummary
-        }
-
-        const commentContent = `${commentBody}\n\n${COMMENT_MARKER}`
-        core.info(`Looking for pre-existing test summary`)
-        const commentList = await this.octokit.rest.issues.listComments({
-          ...github.context.repo,
-          issue_number: pullRequestNumber
-        })
-        const targetId = commentList.data.find((el: any) => el.body?.includes(COMMENT_MARKER))?.id
-        if (targetId !== undefined) {
-          core.info(`Updating test summary as comment on pull-request`)
-          await this.octokit.rest.issues.updateComment({
-            ...github.context.repo,
-            issue_number: pullRequestNumber,
-            comment_id: targetId,
-            body: commentContent
-          })
-        } else {
-          core.info(`Attaching test summary as comment on pull-request`)
-          await this.octokit.rest.issues.createComment({
-            ...github.context.repo,
-            issue_number: pullRequestNumber,
-            body: commentContent
-          })
-        }
-      }
+      await this.commentPr(shortSummary, summary)
 
       core.info(`Check run create response: ${resp.status}`)
       core.info(`Check run URL: ${resp.data.url}`)
