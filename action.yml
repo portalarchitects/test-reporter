@@ -108,6 +108,9 @@ inputs:
         - never: Always expand the report details
     required: false
     default: 'auto'
+  commentIssueNumber:
+    description: "pull request number for test summary comment"
+    required: false
   token:
     description: GitHub Access Token
     required: false
