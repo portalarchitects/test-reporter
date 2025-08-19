@@ -58982,7 +58982,6 @@ class NetteTesterJunitParser {
 
 
 
-const COMMENT_MARKER = '<!-- test-summary-pr-comment-marker -->';
 async function main() {
     try {
         const testReporter = new TestReporter();
@@ -59100,18 +59099,19 @@ class TestReporter {
         }
     }
     async commentPr(summary) {
+        const commentMarker = `<!-- test-summary-pr-comment-marker ${this.name} -->`;
         if (Number.isNaN(this.pullRequestNumber) || this.pullRequestNumber < 1) {
             info('Not in the context of a pull request. Skipping comment creation.');
         }
         else {
-            const commentContent = `${summary}\n\n${COMMENT_MARKER}`;
+            const commentContent = `${summary}\n\n${commentMarker}`;
             info(`Looking for pre-existing test summary`);
             const commentList = await this.octokit.rest.issues.listComments({
                 ...github_context.repo,
                 issue_number: this.pullRequestNumber
             });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const targetId = commentList.data.find((el) => el.body?.includes(COMMENT_MARKER))?.id;
+            const targetId = commentList.data.find((el) => el.body?.includes(commentMarker))?.id;
             if (targetId !== undefined) {
                 info(`Updating test summary as comment on pull-request`);
                 await this.octokit.rest.issues.updateComment({
